@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 
-function Message({ message }) {
-  const { text } = message;
+function Message({ data }) {
+  const { text } = data;
 
   return (
-    <View>
+    <View style={{ height: 100, backgroundColor: 'red' }}>
       <Text>{text}</Text>
     </View>
   );

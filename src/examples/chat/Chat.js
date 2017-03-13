@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListView } from 'react-native';
+import { View, Text, ListView, StyleSheet } from 'react-native';
 import firebase from '~/firebase';
 import Message from './components/Message';
 
@@ -15,32 +15,38 @@ class Chat extends React.Component {
     });
 
     // Set refs
-    // this.typing = firebase.ref(`${REF}/online`);
-    // this.messages = firebase
-    //   .ref(`${REF}/online`)
-    //   .orderByKey()
-    //   .limitToLast(50);
+    this.typingRef = firebase.database().ref(`${REF}/typing`);
+    this.messagesRef = firebase.database()
+      .ref(`${REF}/messages`)
+      .orderByKey()
+      .limitToLast(50);
+
+    // Keep a raw copy of the messages
+    this.messages = {};
 
     this.state = {
       loading: true,
       typing: 0,
-      messages: this.dataSource.cloneWithRows([]),
+      dataSource: this.dataSource.cloneWithRows({}),
     };
   }
 
   componentDidMount() {
-    // this.typing.on('value', this.onTypingChange);
-    // this.typing.on('child_added', this.onNewMessage);
-    // firebase.database().ref('examples/chat').set({
-    //   online: 0,
-    //   typing: 0,
-    //   messages: ['foobar'],
-    // });
+    this.typingRef.on('value', this.onTypingChange);
+    this.messagesRef.on('child_added', this.onNewMessage);
+
+    // const r = firebase.database().ref('examples/chat/messages').push()
+    //
+    // r.set({
+    //   _key: r.key,
+    //   timestamp: Date.now(),
+    //   text: 'Message 2!',
+    // })
   }
 
   componentWillUnmount() {
-    // this.typing.off('value', this.onTypingChange);
-    // this.messages.off('child_added', this.onNewMessage);
+    this.typingRef.off('value', this.onTypingChange);
+    this.messagesRef.off('child_added', this.onNewMessage);
   }
 
   /**
@@ -59,12 +65,15 @@ class Chat extends React.Component {
    * @param snapshot
    */
   onNewMessage = (snapshot) => {
+    this.messages = {
+      ...this.messages,
+      [snapshot.key]: snapshot.val(),
+    };
+
+    console.log('messages', this.messages)
     this.setState({
       loading: false,
-      messages: this.dataSource.cloneWithRows([
-        ...this.state.messages,
-        ...snapshot.val() || {},
-      ]),
+      dataSource: this.dataSource.cloneWithRows(this.messages),
     });
   };
 
@@ -75,12 +84,20 @@ class Chat extends React.Component {
   render() {
     return (
       <ListView
+        style={styles.container}
         enableEmptySections
-        dataSource={this.state.messages}
-        renderRow={message => <Message message={message} />}
+        dataSource={this.state.dataSource}
+        renderRow={data => <Message data={data} />}
       />
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'column-reverse',
+  },
+});
 
 export default Chat;

@@ -19,7 +19,7 @@ class Example extends React.Component {
     const { state } = this.props.navigation;
 
     return (
-      <View>
+      <View style={styles.container}>
         <StatusBar
           animated
           backgroundColor={state.params.config.color ? `rgb(${state.params.config.color})` : '#0279ba'}
@@ -29,5 +29,12 @@ class Example extends React.Component {
     );
   }
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+});
 
 export default Example;
