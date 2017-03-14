@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { ListView, ActivityIndicator, RefreshControl, Text } from 'react-native';
+import { ListView, StyleSheet, ActivityIndicator, RefreshControl, Text } from 'react-native';
 import firebase from '~/firebase';
 import Post from './components/Post';
 
@@ -7,7 +7,6 @@ const REF = 'examples/infiniteScroll';
 
 /**
  * Infinite scrolling ListView implemented using Firebase
- * All styles are inline, you should break them out however you prefer.
  */
 
 class infiniteScroll extends Component {
@@ -116,7 +115,7 @@ class infiniteScroll extends Component {
     if (this.posts) {
       return (
         <ListView
-          style={{ flex: 1, backgroundColor: '#dadada' }}
+          style={styles.listStyle}
           enableEmptySections
           dataSource={this.state.dataSource}
           renderRow={(data) => <Post data={data} tapAction={this.handlePostPress} />}
@@ -139,5 +138,12 @@ class infiniteScroll extends Component {
     }
   }
 }
+
+const styles = StyleSheet.create({
+  listStyle: {
+    flex: 1,
+    backgroundColor: '#dadada',
+  },
+});
 
 export default infiniteScroll;
