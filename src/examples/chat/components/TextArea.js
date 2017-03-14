@@ -20,6 +20,14 @@ class TextArea extends React.Component {
   }
 
   /**
+   * Ensure the timeout doesn't trigger if the component
+   * is unmounted
+   */
+  componentWillUnmount() {
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
+  }
+
+  /**
    * On submit reset the text, close the keybord
    * and pass the text back to the parent.
    */
@@ -47,7 +55,11 @@ class TextArea extends React.Component {
       this.typingTimeout = setTimeout(() => {
         this.isTyping = false;
         this.props.onEndTyping();
-      }, 300);
+      }, 2000);
+    } else {
+      this.isTyping = false;
+      clearTimeout(this.typingTimeout);
+      this.props.onEndTyping();
     }
   }
 
