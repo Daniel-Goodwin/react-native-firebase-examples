@@ -1,81 +1,141 @@
 import React from 'react';
-import { View, Text, ListView, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, ListView, StyleSheet, AsyncStorage } from 'react-native';
+import { randomString } from '~/utils';
 import firebase from '~/firebase';
 import Message from './components/Message';
+import TextArea from './components/TextArea';
+import Typing from './components/Typing';
 
 const REF = 'examples/chat';
+const ID = '@Examples:Chat:id';
 
 class Chat extends React.Component {
 
   constructor() {
     super();
 
-    this.dataSource = new ListView.DataSource({
-      rowHasChanged: (r1, r2) => r1._key !== r2._key,
-    });
+    this.id = null;
+    this.hasReceivedInitalMessages = false;
 
-    // Set refs
-    this.typingRef = firebase.database().ref(`${REF}/typing`);
-    this.messagesRef = firebase.database()
-      .ref(`${REF}/messages`)
-      .orderByKey()
-      .limitToLast(50);
+    // Component refs
+    this.listView = null;
+
+    // Set firebase refs
+    this.newMessageRef = firebase.database().ref(`${REF}/messages`).orderByKey().limitToLast(1);
+    this.messagesRef = firebase.database().ref(`${REF}/messages`).orderByKey().limitToLast(50);
 
     // Keep a raw copy of the messages
     this.messages = {};
 
+    // ListView DataSource instance
+    this.dataSource = new ListView.DataSource({
+      rowHasChanged: (r1, r2) => r1._key !== r2._key,
+    });
+
+    // Initial State
     this.state = {
       loading: true,
-      typing: 0,
       dataSource: this.dataSource.cloneWithRows({}),
     };
   }
 
-  componentDidMount() {
-    this.typingRef.on('value', this.onTypingChange);
-    this.messagesRef.on('child_added', this.onNewMessage);
-
-    // const r = firebase.database().ref('examples/chat/messages').push()
-    //
-    // r.set({
-    //   _key: r.key,
-    //   timestamp: Date.now(),
-    //   text: 'Message 2!',
-    // })
-  }
-
-  componentWillUnmount() {
-    this.typingRef.off('value', this.onTypingChange);
-    this.messagesRef.off('child_added', this.onNewMessage);
-  }
-
   /**
-   * Set the current users currently typing a new message
-   * @param snapshot
+   * On mount, get/set the users ID & proceed to load the
+   * initial data.
    */
-  onTypingChange = (snapshot) => {
-    this.setState({
-      typing: snapshot.val() || 0,
+  componentDidMount() {
+    return AsyncStorage.getItem(ID).then((id) => {
+      if (id) this.id = id;
+      if (!id) {
+        this.id = randomString(12, '#');
+        AsyncStorage.setItem(ID, this.id);
+      }
+      this.messagesRef.once('value', this.onMessages);
     });
-  };
+  }
 
   /**
-   * When a new message is received, create a new ListView
-   * dataSource.
+   * Remove any event listeners when the example is closed.
+   */
+  componentWillUnmount() {
+    this.newMessageRef.off('child_added', this.onNewMessage);
+  }
+
+  /**
+   * On new "child_added" events, append these to the list of messages
+   * we current have. We must ignore the first event as it's triggered
+   * instantly and we've already got the data from the messagesRef event
    * @param snapshot
    */
   onNewMessage = (snapshot) => {
-    this.messages = {
-      ...this.messages,
-      [snapshot.key]: snapshot.val(),
-    };
+    if (this.hasReceivedInitalMessages) {
+      this.messages = {
+        ...this.messages,
+        [snapshot.key]: snapshot.val(),
+      };
 
-    console.log('messages', this.messages)
+      this.setState({
+        dataSource: this.dataSource.cloneWithRows(this.messages),
+      });
+    }
+
+    this.hasReceivedInitalMessages = true;
+  };
+
+  /**
+   * Get the inital set of messages from the database. Once set,
+   * subscribe to new "child_added" events.
+   * @param snapshot
+   */
+  onMessages = (snapshot) => {
+    let messages = {};
+
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnapshot) => {
+        messages = {
+          ...messages,
+          [childSnapshot.key]: childSnapshot.val(),
+        };
+      });
+    }
+
+    this.messages = messages;
+
     this.setState({
       loading: false,
       dataSource: this.dataSource.cloneWithRows(this.messages),
+    }, () => {
+      this.newMessageRef.on('child_added', this.onNewMessage);
     });
   };
+
+  /**
+   * Add a record to indicate the user is typing
+   */
+  onStartTyping() {
+    firebase.database().ref(`${REF}/typing/${this.id}`).set(true);
+  }
+
+  /**
+   * Remove the user from the typing records
+   */
+  onEndTyping() {
+    firebase.database().ref(`${REF}/typing/${this.id}`).remove();
+  }
+
+  /**
+   * Add a new message to firebase
+   * @param text
+   */
+  addMessage(text) {
+    const ref = firebase.database().ref(`${REF}/messages`).push();
+    ref.set({
+      _id: this.id,
+      _key: ref.key,
+      _timestamp: Date.now(),
+      text,
+    });
+  }
 
   /**
    *
@@ -83,12 +143,24 @@ class Chat extends React.Component {
    */
   render() {
     return (
-      <ListView
-        style={styles.container}
-        enableEmptySections
-        dataSource={this.state.dataSource}
-        renderRow={data => <Message data={data} />}
-      />
+      <View style={styles.container}>
+        <ListView
+          ref={(r) => { this.listView = r; }}
+          onContentSizeChange={(contentWidth, contentHeight) => {
+            this.listView.scrollTo({ y: contentHeight, animated: true });
+          }}
+          style={styles.messages}
+          enableEmptySections
+          dataSource={this.state.dataSource}
+          renderRow={data => <Message id={this.id} message={data} />}
+        />
+        <Typing />
+        <TextArea
+          onSubmit={text => this.addMessage(text)}
+          onStartTyping={() => this.onStartTyping()}
+          onEndTyping={() => this.onEndTyping()}
+        />
+      </View>
     );
   }
 }
@@ -96,7 +168,9 @@ class Chat extends React.Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'column-reverse',
+  },
+  messages: {
+    flex: 1,
   },
 });
 
