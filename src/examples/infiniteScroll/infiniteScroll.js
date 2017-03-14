@@ -1,103 +1,143 @@
-import React from 'react';
-import { View, Text, ListView, StyleSheet } from 'react-native';
+import React, { Component } from 'react';
+import { ListView, ActivityIndicator, RefreshControl, Text } from 'react-native';
 import firebase from '~/firebase';
-import Message from './components/Message';
+import Post from './components/Post';
 
-const REF = 'examples/chat';
+const REF = 'examples/infiniteScroll';
 
-class Chat extends React.Component {
+/**
+ * Infinite scrolling ListView implemented using Firebase
+ * All styles are inline, you should break them out however you prefer.
+ */
 
+class infiniteScroll extends Component {
+  /**
+   * Build the dataSource using the method from ListView
+   * Open the subscription to the posts ref in firebase
+   * Init state
+   */
   constructor() {
     super();
-
     this.dataSource = new ListView.DataSource({
-      rowHasChanged: (r1, r2) => r1._key !== r2._key,
+      rowHasChanged: (r1, r2) => JSON.stringify(r1) !== JSON.stringify(r2),
     });
-
-    // Set refs
-    this.typingRef = firebase.database().ref(`${REF}/typing`);
-    this.messagesRef = firebase.database()
-      .ref(`${REF}/messages`)
-      .orderByKey()
-      .limitToLast(50);
-
-    // Keep a raw copy of the messages
-    this.messages = {};
-
+    this.postsRef = firebase.database()
+      .ref(`${REF}/posts`);
+    this.posts = null;
     this.state = {
-      loading: true,
-      typing: 0,
+      refreshing: false,
       dataSource: this.dataSource.cloneWithRows({}),
     };
   }
-
+  
+  /**
+   * Get the first 5 posts from firebase
+   */
   componentDidMount() {
-    this.typingRef.on('value', this.onTypingChange);
-    this.messagesRef.on('child_added', this.onNewMessage);
-
-    // const r = firebase.database().ref('examples/chat/messages').push()
-    //
-    // r.set({
-    //   _key: r.key,
-    //   timestamp: Date.now(),
-    //   text: 'Message 2!',
-    // })
+    this.postsRef.orderByKey().limitToFirst(5).once('value', this.renderPosts.bind(this));
   }
-
+  
+  /**
+   * Safeguard against overlapping subscriptions, we don't need it in this example.
+   * It is however best practise.
+   */
   componentWillUnmount() {
-    this.typingRef.off('value', this.onTypingChange);
-    this.messagesRef.off('child_added', this.onNewMessage);
+    this.postsRef.off('value', this.renderPosts);
   }
-
+  
   /**
-   * Set the current users currently typing a new message
-   * @param snapshot
+   * When pull to refresh happens, refresh the currently loaded posts.
    */
-  onTypingChange = (snapshot) => {
-    this.setState({
-      typing: snapshot.val() || 0,
-    });
-  };
-
+  onRefresh() {
+    this.setState({ refreshing: true });
+    // this.addNewPost();
+    this.postsRef.orderByKey().limitToFirst(this.state.dataSource.rowIdentities[0].length).once('value', this.renderPosts.bind(this));
+  }
   /**
-   * When a new message is received, create a new ListView
-   * dataSource.
-   * @param snapshot
+   * Get the next posts from Firebase, add them to the dataSource and render them using that logic.
    */
-  onNewMessage = (snapshot) => {
-    this.messages = {
-      ...this.messages,
-      [snapshot.key]: snapshot.val(),
-    };
-
-    console.log('messages', this.messages)
-    this.setState({
-      loading: false,
-      dataSource: this.dataSource.cloneWithRows(this.messages),
-    });
-  };
-
+  getNextPosts() {
+    const lastItemRenderedInList = this.state.dataSource.rowIdentities[0][this.state.dataSource.rowIdentities[0].length - 1];
+    this.postsRef.startAt(lastItemRenderedInList).orderByKey().limitToFirst(5).once('value', this.renderPosts.bind(this));
+  }
+  
   /**
-   *
+   * Do something when a post is clicked on
+   * i.e. go to a new route
+   */
+  handlePostPress() {
+    // Add any item pressed here
+  }
+  
+  /**
+   * Helper for the example, to enable goto onRefresh and uncomment the call to this function.
+   */
+  addNewPost() {
+    const r = firebase.database().ref('examples/infiniteScroll/posts').push()
+    r.set({
+      _key: r.key,
+      body: 'This is a short desciption of what the post is going to contain, the full post can be read after you click read more. The actual post should still contain the excerpt so we don\'t disrupt the user journey.',
+      excerpt: 'This is a short desciption of what the post is going to contain, the full post can be read after you click read more.',
+      imgUrl: 'https://unsplash.it/400/300',
+      title: 'hello',
+      user: `Pearly Gates`,
+      avatar: 'https://pbs.twimg.com/profile_images/558109954561679360/j1f9DiJi.jpeg',
+    });
+  }
+  
+  /**
+   * Renders the Activity Indicator that is displayed under the last card.
    * @returns {XML}
    */
+  renderFooter() {
+    return <ActivityIndicator style={{ marginVertical: 20 }}/>;
+  }
+  
+  /**
+   * Pass a snapshot of the data returned from our firebase calls, loop
+   * over the keys and add them to add them to dataSource
+   * @param snapshot
+   */
+  renderPosts(snapshot) {
+    for (let i = 0; i < snapshot.childKeys.length; i++) {
+      const key = snapshot.childKeys[i];
+      this.posts = {
+        ...this.posts || {},
+        [key]: snapshot.value[key],
+      };
+    }
+    this.setState({
+      refreshing: false,
+      dataSource: this.dataSource.cloneWithRows(this.posts),
+    });
+  }
+  
   render() {
-    return (
-      <ListView
-        style={styles.container}
-        enableEmptySections
-        dataSource={this.state.dataSource}
-        renderRow={data => <Message data={data} />}
-      />
-    );
+    if (this.posts) {
+      return (
+        <ListView
+          style={{ flex: 1, backgroundColor: '#dadada' }}
+          enableEmptySections
+          dataSource={this.state.dataSource}
+          renderRow={(data) => <Post data={data} tapAction={this.handlePostPress} />}
+          renderFooter={this.renderFooter.bind(this)}
+          onEndReached={this.getNextPosts.bind(this)}
+          onEndReachedThreshold={20}
+          refreshControl={
+            <RefreshControl
+              refreshing={this.state.refreshing}
+              onRefresh={this.onRefresh.bind(this)}
+            />
+          }
+        />
+      );
+    } else {
+      return (
+        // Necessary as onEndReached is called before we have the data, bug with React Native
+        <Text>~</Text>
+      );
+    }
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'column-reverse',
-  },
-});
-
-export default Chat;
+export default infiniteScroll;

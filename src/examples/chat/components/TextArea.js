@@ -45,9 +45,10 @@ class TextArea extends React.Component {
       if (this.typingTimeout) clearTimeout(this.typingTimeout);
 
       this.typingTimeout = setTimeout(() => {
+        console.log('something')
         this.isTyping = false;
         this.props.onEndTyping();
-      }, 300);
+      }, 2000);
     }
   }
 

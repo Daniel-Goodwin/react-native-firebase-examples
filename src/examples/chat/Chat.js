@@ -50,6 +50,7 @@ class Chat extends React.Component {
         this.id = randomString(12, '#');
         AsyncStorage.setItem(ID, this.id);
       }
+      console.log(this.id)
       this.messagesRef.once('value', this.onMessages);
     });
   }
