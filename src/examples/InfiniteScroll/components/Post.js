@@ -1,27 +1,32 @@
-import React from 'react';
+import React, { PropTypes }  from 'react';
 import { View, StyleSheet, Text, Image } from 'react-native';
 
 /**
- * 'Dumb' Stateless component to render a Card/ Post.
+ * Stateless component to render a Card/ Post.
  * @param data
- * @param tapAction
+ * @param onPress
  * @returns {XML}
  * @constructor
  */
-function Post({ data, tapAction }) {
-  const { title, excerpt, imgUrl, _key, user, avatar } = data;
+function Post({ data }) {
+  const { title, excerpt, imgUrl, user, avatar } = data;
   return (
     <View
-      onPress={() => tapAction(_key)}
       style={styles.container}
     >
       <View style={styles.userContainer}>
-        <Image style={styles.avatar} source={{ uri: avatar }}/>
+        <Image
+          style={styles.avatar}
+          source={{ uri: avatar }}
+        />
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{user}</Text>
         </View>
       </View>
-      <Image style={styles.postImage} source={{ uri: imgUrl }}/>
+      <Image
+        style={styles.postImage}
+        source={{ uri: imgUrl }}
+      />
       <View style={styles.postContentWrapper}>
         <Text style={styles.postTitle}>{title}</Text>
         <Text>{excerpt}</Text>
@@ -29,6 +34,10 @@ function Post({ data, tapAction }) {
     </View>
   );
 }
+
+Post.propTypes = {
+  data: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
   container: {

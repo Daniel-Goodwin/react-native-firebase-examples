@@ -1,4 +1,4 @@
-import infiniteScroll from './infiniteScroll';
+import InfiniteScroll from './InfiniteScroll';
 
 export const config = {
   name: 'Infinite Scroll',
@@ -6,4 +6,4 @@ export const config = {
   color: '11, 67, 54',
 };
 
-export default infiniteScroll;
+export default InfiniteScroll;
