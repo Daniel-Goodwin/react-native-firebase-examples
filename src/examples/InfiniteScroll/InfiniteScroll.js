@@ -58,7 +58,6 @@ class InfiniteScroll extends Component {
    * @param snapshot
    */
   onPosts = (snapshot) => {
-    this.posts = {};
     if (snapshot.exists()) {
       for (let i = 0; i < snapshot.childKeys.length; i++) {
         const key = snapshot.childKeys[i];
@@ -78,7 +77,8 @@ class InfiniteScroll extends Component {
    * Get the next posts from Firebase, add them to the dataSource and render them using that logic.
    */
   getNextPosts() {
-    const lastItemRenderedInList = this.posts[Object.keys(this.posts).length - 1];
+    const postKeys = Object.keys(this.posts);
+    const lastItemRenderedInList = postKeys[postKeys.length - 1];
     this.postsRef.startAt(lastItemRenderedInList).orderByKey().limitToFirst(5).once('value', this.onPosts);
   }
   
