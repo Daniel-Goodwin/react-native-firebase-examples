@@ -36,11 +36,11 @@ function Post({ data }) {
 
 Post.propTypes = {
   data: PropTypes.shape({
-    title: PropTypes.string,
-    excerpt: PropTypes.string,
-    imgUrl: PropTypes.string,
-    user: PropTypes.string,
-    avatar: PropTypes.string,
+    title: PropTypes.string.isRequired,
+    excerpt: PropTypes.string.isRequired,
+    imgUrl: PropTypes.string.isRequired,
+    user: PropTypes.string.isRequired,
+    avatar: PropTypes.string.isRequired,
   }).isRequired,
 };
 
