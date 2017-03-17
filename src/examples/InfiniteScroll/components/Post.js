@@ -4,7 +4,6 @@ import { View, StyleSheet, Text, Image } from 'react-native';
 /**
  * Stateless component to render a Card/ Post.
  * @param data
- * @param onPress
  * @returns {XML}
  * @constructor
  */
@@ -36,7 +35,13 @@ function Post({ data }) {
 }
 
 Post.propTypes = {
-  data: PropTypes.object.isRequired,
+  data: PropTypes.shape({
+    title: PropTypes.string,
+    excerpt: PropTypes.string,
+    imgUrl: PropTypes.string,
+    user: PropTypes.string,
+    avatar: PropTypes.string,
+  }).isRequired,
 };
 
 const styles = StyleSheet.create({

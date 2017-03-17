@@ -32,16 +32,8 @@ class InfiniteScroll extends Component {
   /**
    * Get the first 5 posts from firebase
    */
-  componentWillMount() {
+  componentDidMount() {
     this.postsRef.orderByKey().limitToFirst(5).once('value', this.onPosts);
-  }
-  
-  /**
-   * Safeguard against overlapping subscriptions, we don't need it in this example.
-   * It is however best practise.
-   */
-  componentWillUnmount() {
-    this.postsRef.off('value', this.onPosts);
   }
   
   /**
@@ -59,13 +51,12 @@ class InfiniteScroll extends Component {
    */
   onPosts = (snapshot) => {
     if (snapshot.exists()) {
-      for (let i = 0; i < snapshot.childKeys.length; i++) {
-        const key = snapshot.childKeys[i];
+      snapshot.forEach((childSnapshot) => {
         this.posts = {
           ...this.posts || {},
-          [key]: snapshot.value[key],
+          [childSnapshot.key]: childSnapshot.value,
         };
-      }
+      });
       this.setState({
         refreshing: false,
         dataSource: this.dataSource.cloneWithRows(this.posts),
@@ -98,7 +89,7 @@ class InfiniteScroll extends Component {
         enableEmptySections
         dataSource={this.state.dataSource}
         renderRow={(data) => <Post data={data}/>}
-        renderFooter={this.renderFooter.bind(this)}
+        renderFooter={this.renderFooter}
         onEndReached={this.getNextPosts.bind(this)}
         onEndReachedThreshold={20}
         refreshControl={
